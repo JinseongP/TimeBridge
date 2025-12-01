@@ -1,5 +1,5 @@
 # TimeBridge
-Official Pytorch Implementation of "TimeBridge: Better Diffusion Prior Design with Bridge Models for Time Series Generation" (KDD 2026)
+Official Pytorch Implementation of ["TimeBridge: Better Diffusion Prior Design with Bridge Models for Time Series Generation"](https://arxiv.org/abs/2408.06672) (KDD 2026)
 
 ## Code Implementation 
 
