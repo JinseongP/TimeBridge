@@ -60,7 +60,7 @@ class KarrasDenoiserTS(KarrasDenoiser):
         self.model_matching = model_matching
 
         if self.pred_mode.startswith('vp'):
-            assert self.sigma_max==1
+            assert self.sigma_max==1.0
 
     @property
     def loss_fn(self):
@@ -195,12 +195,12 @@ class Diffusion_TS(nn.Module):
             deterministic=False,
             cond_embedding=False,
             rho=7.0,
-            use_img_transform=True,              # 기본값 False
-            img_transform_type='delay',           # 기본값 delay
-            delay_embed_dim=32,                   # 기본값 32
-            delay_time_delay=1,                   # 기본값 1
-            stft_n_fft=256,                       # 기본값 256
-            stft_hop_length=64,                   # 기본값 64
+            use_img_transform=True,
+            img_transform_type='delay',
+            delay_embed_dim=32,
+            delay_time_delay=1,
+            stft_n_fft=256,
+            stft_hop_length=64,
             **kwargs
     ):
         super(Diffusion_TS, self).__init__()
@@ -210,18 +210,18 @@ class Diffusion_TS(nn.Module):
         self.feature_size = feature_size
         self.prior = prior
         ff_weight = default(reg_weight, math.sqrt(self.seq_length) / 5)
-        
-        # ===== Image Transform 설정 =====
+
+
+        # Image transform configuration
         self.use_img_transform = use_img_transform
         self.img_transform_type = img_transform_type
         self.img_embedder = None
-        
+
         if self.use_img_transform:
             device = 'cuda' if torch.cuda.is_available() else 'cpu'
             print(f"Using image transform: {img_transform_type}")
-            
+
             if img_transform_type == 'delay':
-                # 안전 검사
                 # if delay_embed_dim >= seq_length:
                 #     original_delay_embed_dim = delay_embed_dim
                 #     delay_embed_dim = max(4, seq_length // 3)
@@ -270,19 +270,19 @@ class Diffusion_TS(nn.Module):
         else:
             model_seq_length = seq_length
             model_feature_size = feature_size
-        
-        # ===== 중요: 변환된 크기 저장! =====
+
+
+        # Store transformed dimensions
         self.model_seq_length = model_seq_length
         self.model_feature_size = model_feature_size
-        # ===================================
-        
-        # Conv params 조정
+
+        # Adjust conv params for image transform
         if self.use_img_transform:
             print("  Disabling conv_params for image transform")
             kernel_size = None
             padding_size = None
-        
-        # Diffusion 파라미터
+
+        # Diffusion parameters
         self.sigma_min = sigma_min
         self.sigma_max = sigma_max
         self.sigma_data = sigma_data
@@ -299,8 +299,8 @@ class Diffusion_TS(nn.Module):
         print("sigma with", self.sigma_min, self.sigma_max, self.sigma_data, "beta with", self.beta_min, self.beta_d)
         print("pred with: ", self.pred_mode)
         self.beta_schedule = 'real-uniform'
-        
-        # Transformer 모델
+
+        # Transformer model
         self.model = Transformer(
             n_feat=model_feature_size,
             n_channel=model_seq_length,
@@ -316,8 +316,8 @@ class Diffusion_TS(nn.Module):
             cond=cond_embedding,
             **kwargs
         )
-        
-        # Diffusion 초기화
+
+        # Diffusion initialization
         self.diffusion = KarrasDenoiserTS(
             sigma_data=sigma_data,
             sigma_max=sigma_max,
@@ -345,7 +345,7 @@ class Diffusion_TS(nn.Module):
     
     def _apply_img_transform(self, x):
         """
-        시계열 -> 이미지 변환 (STFT / Delay)
+        Time series to image transformation (STFT / Delay embedding)
         """
         if not self.use_img_transform:
             return x
@@ -354,7 +354,7 @@ class Diffusion_TS(nn.Module):
     
         if self.img_transform_type == 'delay':
             if L != self.seq_length:
-                print(f"⚠️  Input length {L} != config length {self.seq_length}")
+                print(f"WARNING: Input length {L} != config length {self.seq_length}")
     
             original_seq_len = self.img_embedder.seq_len
             self.img_embedder.seq_len = L
@@ -383,13 +383,13 @@ class Diffusion_TS(nn.Module):
             original_seq_len = self.img_embedder.seq_len
             self.img_embedder.seq_len = L
     
-            # (1) Flatten & dtype/device 정리
+            # Flatten and fix dtype/device
             x_flat = x.permute(0, 2, 1).reshape(B * C, L)
             if x_flat.dtype in (torch.float16, torch.bfloat16):
                 x_flat = x_flat.to(torch.float32)
             x_flat = x_flat.to(x.device).contiguous()
     
-            # (2) STFT 생성 (return_complex=True)
+            # Generate STFT
             stft_flat = torch.stft(
                 x_flat,
                 n_fft=self.img_embedder.n_fft,
@@ -398,7 +398,7 @@ class Diffusion_TS(nn.Module):
                 return_complex=True
             )
     
-            # (3) 너무 큰 배치는 chunk 단위로 STFT
+            # Process large batches in chunks
             bc = x_flat.shape[0]
             chunk = 4096
             outs = []
@@ -409,11 +409,11 @@ class Diffusion_TS(nn.Module):
     
             Fbins, Tbins = stft_flat.shape[1], stft_flat.shape[2]
     
-            # (4) 실수/허수 분리
+            # Separate real and imaginary parts
             real = stft_flat.real.reshape(B, C, Fbins, Tbins)
             imag = stft_flat.imag.reshape(B, C, Fbins, Tbins)
     
-            # (5) Normalize (MinMaxArgs 사용)
+            # Normalize
             if getattr(self.img_embedder, "min_real", None) is not None:
                 real = (MinMaxArgs(real,
                                    self.img_embedder.min_real.to(x.device),
@@ -431,7 +431,7 @@ class Diffusion_TS(nn.Module):
             B, C2, H, W = x_img.shape
             x_transformed = x_img.permute(0, 2, 3, 1).reshape(B, H * W, C2)
     
-            # (8) 길이 보정
+            # Adjust length
             expected_length = self.model_seq_length
             actual_length = x_transformed.shape[1]
             if actual_length != expected_length:
@@ -452,7 +452,7 @@ class Diffusion_TS(nn.Module):
     
     def _inverse_img_transform(self, x):
         """
-        이미지 -> 시계열 역변환
+        Image to time series inverse transform
         """
         if not self.use_img_transform:
             return x
@@ -460,7 +460,7 @@ class Diffusion_TS(nn.Module):
         B, HW, C_or_C2 = x.shape
         
         if self.img_transform_type == 'delay':
-            # 원래 이미지 크기 복원
+            # Restore original image size
             H = self.img_embedder.embedding
             W = (self.seq_length - H) // self.img_embedder.delay + 1
             
@@ -470,12 +470,12 @@ class Diffusion_TS(nn.Module):
             C = C_or_C2
             x_img = x_actual.reshape(B, H, W, C).permute(0, 3, 1, 2)  # (B, C, H, W)
             
-            # ===== img_shape를 명시적으로 설정! =====
+            # Set img_shape explicitly
             self.img_embedder.img_shape = (B, C, H, W)
             
             x_ts = self.img_embedder.img_to_ts(x_img)
             
-            # 원본 길이로 조정
+            # Adjust to original length
             if x_ts.shape[1] != self.seq_length:
                 if x_ts.shape[1] < self.seq_length:
                     padding = torch.zeros(B, self.seq_length - x_ts.shape[1], C,
@@ -486,7 +486,7 @@ class Diffusion_TS(nn.Module):
                 
     def _inverse_img_transform(self, x):
         """
-        이미지 -> 시계열 역변환
+        Image to time series inverse transform
         """
         if not self.use_img_transform:
             return x
@@ -498,7 +498,7 @@ class Diffusion_TS(nn.Module):
             L = self.seq_length
             d = int(self.img_embedder.delay)
     
-            # 우선 config의 embedding(H_guess)을 사용
+            # First try using config embedding
             H_guess = int(getattr(self.img_embedder, "embedding", 0)) or 0
     
             def valid_HW_pair(H):
@@ -509,10 +509,10 @@ class Diffusion_TS(nn.Module):
                     return None
                 return (H, W) if H * W == HW else None
     
-            # 1) config 기반 시도
+            # Try config-based approach
             pair = valid_HW_pair(H_guess) if H_guess else None
     
-            # 2) 실패하면 가능한 H 탐색으로 대안 찾기 (예: (8,6), (16,3) 등)
+            # If failed, search for alternative H values
             if pair is None:
                 candidates = []
                 for H_try in range(1, L + 1):
@@ -520,8 +520,8 @@ class Diffusion_TS(nn.Module):
                     if p is not None:
                         candidates.append(p)
                 if not candidates:
-                    # 마지막 안전장치: HW 약수로 근사 (W = HW // H)
-                    # 그리고 W ≈ (L - H)//d + 1 조건과 가장 가까운 것 선택
+                    # Last resort: approximate using HW divisors
+                    # Select closest match to condition
                     best = None
                     best_err = 1e9
                     for H_try in range(1, L + 1):
@@ -534,7 +534,7 @@ class Diffusion_TS(nn.Module):
                                 best = (H_try, W_try)
                     pair = best
                 else:
-                    # 여러 후보가 있으면 H_guess에 가장 가까운 것이나, 없으면 첫 번째 사용
+                    # If multiple candidates, use closest to H_guess
                     if H_guess:
                         pair = min(candidates, key=lambda p: abs(p[0] - H_guess))
                     else:
@@ -542,35 +542,35 @@ class Diffusion_TS(nn.Module):
     
             H, W = pair  # 확정된 (H, W)
     
-            # ---- (B, HW, C) -> (B, C, H, W) 복원 ----
+            # Restore (B, HW, C) -> (B, C, H, W)
             C = C_or_C2
             x_img = x[:, :H * W, :].reshape(B, H, W, C).permute(0, 3, 1, 2)  # (B, C, H, W)
     
-            # ---- Overlap-Add로 시계열 복원 (마지막 창 안전 처리 + 평균) ----
+            # Reconstruct time series using overlap-add
             device = x.device
             dtype = x.dtype
     
             recon = torch.zeros(B, L, C, device=device, dtype=dtype)
-            weight = torch.zeros(B, L, 1, device=device, dtype=dtype)  # 위치별 누적 가중치(겹침 개수)
+            weight = torch.zeros(B, L, 1, device=device, dtype=dtype)  # Accumulate weights for overlapping
     
             for i in range(W):
                 start = i * d
-                end = min(start + H, L)  # 마지막 창은 초과 금지
+                end = min(start + H, L)  # Last window should not exceed
                 if end <= start:
-                    break  # 혹시라도 잘못된 값이면 무시
+                    break  # Ignore invalid values
     
-                patch_len = end - start  # 실제로 들어갈 길이
+                patch_len = end - start  # Actual length to use
                 # x_img[:, :, :patch_len, i] : (B, C, patch_len)
                 patch = x_img[:, :, :patch_len, i].permute(0, 2, 1)  # (B, patch_len, C)
     
                 recon[:, start:end, :] += patch
                 weight[:, start:end, :] += 1.0
     
-            # 0 division 방지
+            # Prevent division by zero
             weight = torch.clamp(weight, min=1.0)
-            x_ts = recon / weight  # 겹치는 구간 평균
+            x_ts = recon / weight  # Average overlapping regions
     
-            # 길이 보정(안전장치)
+            # Adjust length (safety check)
             if x_ts.shape[1] != L:
                 if x_ts.shape[1] < L:
                     padding = torch.zeros(B, L - x_ts.shape[1], C, device=device, dtype=dtype)
@@ -579,7 +579,7 @@ class Diffusion_TS(nn.Module):
                     x_ts = x_ts[:, :L, :]
     
         elif self.img_transform_type == 'stft':
-            # STFT 역변환 기존 코드 유지
+            # Keep existing STFT inverse transform code
             import torchaudio.transforms as T
     
             H = self.img_embedder.n_fft // 2 + 1
@@ -838,7 +838,7 @@ class Diffusion_TS(nn.Module):
         print(f"sampling with NFE: {nfe}")
         print("1111", sample.shape, y0.shape)
         
-        # ===== Image Transform 역변환 =====
+        # Image transform inverse
         sample = self._inverse_img_transform(sample)
         y0 = self._inverse_img_transform(y0)
         print("2222", sample.shape, y0.shape)
@@ -865,7 +865,7 @@ class Diffusion_TS(nn.Module):
         self.device = get_dev()
         self.model.to(self.device)
         
-        # Transform 적용
+        # Apply transform
         target_transformed = self._apply_img_transform(target)
         if partial_mask is not None:
             partial_mask_transformed = self._apply_img_transform(partial_mask)
@@ -902,7 +902,7 @@ class Diffusion_TS(nn.Module):
         )
         print(f"sampling with NFE: {nfe}")
         
-        # 역변환
+        # Inverse transform
         sample = self._inverse_img_transform(sample)
 
         return sample, path

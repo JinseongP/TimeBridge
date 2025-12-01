@@ -64,11 +64,11 @@ class Trainer(object):
         self.log_frequency = 100
 
         if args.train and args.sample == 1 and args.mode in ['infill', 'predict']:
-            # Imputation의 경우
+            # For imputation tasks
             original_samples = torch.tensor(dataloader['dataset'].samples).float()
             original_masks = torch.tensor(dataloader['dataset'].masking)
-            
-            # Image transform 사용 시 변환
+
+            # Apply image transform if enabled
             if hasattr(self.model, 'use_img_transform') and self.model.use_img_transform:
                 print("Computing imputation prior in TRANSFORMED space...")
                 with torch.no_grad():
@@ -93,34 +93,34 @@ class Trainer(object):
                     device=self.device
                 )
         else:
-            # Generation의 경우
+            # For generation tasks
             original_samples = torch.tensor(dataloader['dataset'].samples).float()
-            
-            # ===== Image Transform 사용 시 변환된 공간에서 Prior 계산 =====
+
+            # Compute prior in transformed space if image transform is enabled
             if hasattr(self.model, 'use_img_transform') and self.model.use_img_transform:
                 print(f"\n{'='*60}")
                 print(f"Using Image Transform: {self.model.img_transform_type}")
                 print(f"Original data shape: {original_samples.shape}")
-                
-                # 원본 데이터를 변환된 공간으로
+
+                # Transform to image space
                 with torch.no_grad():
                     transformed_samples = self.model._apply_img_transform(
                         original_samples.to(self.device)
                     ).cpu()
-                
+
                 print(f"Transformed data shape: {transformed_samples.shape}")
                 print(f"Computing prior in TRANSFORMED space...")
-                
-                # 변환된 공간에서 prior 계산
+
+                # Compute prior in transformed space
                 self.saved_prior = self.generate_prior(
                     transformed_samples,
                     prior_mode=args.prior
                 )
                 print(f"Prior computed successfully!")
                 print(f"{'='*60}\n")
-                
+
             else:
-                # 원본 공간에서 prior 계산
+                # Compute prior in original space
                 self.saved_prior = self.generate_prior(
                     original_samples,
                     prior_mode=args.prior
@@ -225,7 +225,7 @@ class Trainer(object):
 
         with tqdm(initial=step, total=self.train_num_steps) as pbar:
             while step < self.train_num_steps:
-                epoch_start = time.time()  # Epoch 시작
+                epoch_start = time.time()
                 total_loss = 0.
                 for _ in range(self.gradient_accumulate_every):
                     if self.args.mode in ['infill', 'predict']:

@@ -8,3 +8,10 @@ dm-control==1.0.12
 dm-env==1.6
 dm-tree==0.1.8
 mujoco==2.3.4
+pyyaml
+statsmodels
+gpytorch
+numba
+numpy==1.24.3
+tensorflow-cpu==2.13.1
+typing-extensions>=4.10.0

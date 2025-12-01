@@ -78,8 +78,8 @@ def parse_args():
     parser.add_argument('--result_csv', type=str, default="./result.csv")
 
     # args for DDBM
-    parser.add_argument('--sigma_min', type=float, default=0.002)
-    parser.add_argument('--sigma_max', type=float, default=80.0)
+    parser.add_argument('--sigma_min', type=float, default=0.0001)
+    parser.add_argument('--sigma_max', type=float, default=1.0)
     parser.add_argument('--sigma_data', type=float, default=0.5)
 
     parser.add_argument('--beta_min', type=float, default=0.1)

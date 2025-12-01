@@ -19,24 +19,128 @@ The full libraries list is provided as a `requirements.txt` in this repo. Please
 
 ### Training & Sampling
 
-Refer to **run** folder.
 
-For training, you can reproduce the experimental results of all benchmarks by runing
+**Note:** We provide `.yaml` config files (stock, sines, mujoco, etth, energy, fmri) under `./Config` folder.
 
-~~~bash
-(myenv) $ python main.py --name {name} --config_file {config.yaml} --gpu 0 --train
-~~~
+---
 
-**Note:** We also provided the corresponding `.yml` files (only stocks, sines, mujoco, etth, energy and fmri) under the folder `./Config` where all possible option can be altered. 
+#### Common Parameters
 
-#### Unconstrained
+| Parameter | Description | Options/Values |
+|-----------|-------------|----------------|
+| `--data` | Dataset name | energy, etth, fmri, mujoco, sines, stock |
+| `--name` | Experiment name | Custom string |
+| `--output` | Output directory | Default: `OUTPUT` |
+| `--sample` | Task type | `0`: unconditional, `1`: conditional |
+| `--mode` | Task mode | `generation`, `infill`, `predict` |
+
+#### TimeBridge Parameters
+
+| Parameter | Description |  Notes |
+|-----------|-------------|-------|
+| `--prior` | Prior distribution | `normal`, `uniform`, `trend`, `trend-poly`, `trend-linear`, `gp` |
+| `--pred_mode` | Prediction mode | `vp` or `ve`. **Important:** `vp` requires `sigma_max=1.0` |
+| `--sampler` | Sampling method | `sde` or `ode` |
+| `--sigma_min` | Min noise level | Diffusion noise parameter |
+| `--sigma_max` | Max noise level | **Must be 1.0 for `vp` mode** |
+| `--sigma_data` | Data noise scale  | Diffusion noise parameter |
+| `--beta_min` | Beta schedule min | Beta schedule parameter |
+| `--beta_d` | Beta schedule max | Beta schedule parameter |
+| `--kernel_type` | GP kernel type |For GP prior |
+| `--bw` | Bandwidth type | For GP prior |
+| `--var` | Prior variance | Variance parameter |
+| `--model_matching` | Matching type | Model matching strategy |
+
+---
+
+### Usage Examples
+
+Refer to **run** folder for example notebooks including best settings (`01_Unconditional_Generation.ipynb`, etc.).
+
+
+#### 1. Unconditional Generation 
+Training with full Bridge-TS parameters:
+
 ```bash
-(myenv) $ python main.py --name {name} --config_file {config.yaml} --gpu 0 --sample 0 --milestone {checkpoint_number}
+python main.py \
+    --data energy \
+    --name energy \
+    --sample 0 \
+    --mode generation \
+    --train \
+    --pred_mode vp \
+    --sampler sde \
+    --prior gp \
+    --sigma_min 0.0001 \
+    --sigma_max 1.0 \
+    --sigma_data 0.05 \
+    --beta_min 0.2 \
+    --beta_d 10.0 \
+    --kernel_type rbf \
+    --bw GAUSSIAN \
+    --var 1.0
 ```
 
-#### Imputation
+Then evaluate:
+
 ```bash
-(myenv) $ python main.py --name {name} --config_file {config.yaml} --gpu 0 --sample 1 --milestone {checkpoint_number} --mode infill --missing_ratio {missing_ratio}
+python main.py \
+    --data energy \
+    --name energy \
+    --sample 0 \
+    --mode generation \
+    --eval \
+    --pred_mode vp \
+    --sampler sde \
+    --prior gp \
+    --sigma_min 0.0001 \
+    --sigma_max 1.0 \
+    --sigma_data 0.05 \
+    --beta_min 0.2 \
+    --beta_d 10.0 \
+    --kernel_type rbf \
+    --bw GAUSSIAN \
+    --var 1.0
+```
+
+
+#### 2. Trend Priors (Trend-Conditional Generation)
+
+Using different trend-based priors:
+
+```bash
+# Polynomial trend
+python main.py --data etth --name etth_poly --sample 0 --mode generation --train --prior trend-poly
+
+# Linear trend
+python main.py --data etth --name etth_linear --sample 0 --mode generation --train --prior trend-linear
+
+# Default trend
+python main.py --data stock --name stock_trend --sample 0 --mode generation --train --prior trend
+```
+
+#### 3. Imputation (Fixed-data Conditional)
+
+For missing value imputation:
+
+```bash
+# Training
+python main.py \
+    --data stock \
+    --name stock_imputation \
+    --sample 1 \
+    --mode infill \
+    --train \
+    --missing_ratio 0.2
+
+# Evaluation
+python main.py \
+    --data stock \
+    --name stock_imputation \
+    --sample 1 \
+    --mode infill \
+    --milestone 10 \
+    --missing_ratio 0.2
 ```
 
 
