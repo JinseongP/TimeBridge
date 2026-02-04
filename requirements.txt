@@ -1,4 +1,6 @@
 torch==2.0.1
+torchvision==0.15.2
+torchaudio==2.0.2
 einops==0.6.0
 ema-pytorch==0.2.1
 matplotlib==3.6.0
@@ -14,4 +16,4 @@ gpytorch
 numba
 numpy==1.24.3
 tensorflow-cpu==2.13.1
-typing-extensions>=4.10.0
+typing-extensions==4.5.0
