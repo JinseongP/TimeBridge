@@ -32,7 +32,7 @@ The full libraries list is provided as a `requirements.txt` in this repo. Please
 | `--name` | Experiment name | Custom string |
 | `--output` | Output directory | Default: `OUTPUT` |
 | `--sample` | Task type | `0`: unconditional, `1`: conditional |
-| `--mode` | Task mode | `generation`, `infill`, `predict` |
+| `--mode` | Task mode | `generation`, `infill`|
 
 #### TimeBridge Parameters
 
@@ -59,90 +59,20 @@ Refer to **run** folder for example notebooks including best settings (`01_Uncon
 
 
 #### 1. Unconditional Generation 
-Training with full Bridge-TS parameters:
-
-```bash
-python main.py \
-    --data energy \
-    --name energy \
-    --sample 0 \
-    --mode generation \
-    --train \
-    --pred_mode vp \
-    --sampler sde \
-    --prior gp \
-    --sigma_min 0.0001 \
-    --sigma_max 1.0 \
-    --sigma_data 0.05 \
-    --beta_min 0.2 \
-    --beta_d 10.0 \
-    --kernel_type rbf \
-    --bw GAUSSIAN \
-    --var 1.0
-```
-
-Then evaluate:
-
-```bash
-python main.py \
-    --data energy \
-    --name energy \
-    --sample 0 \
-    --mode generation \
-    --eval \
-    --pred_mode vp \
-    --sampler sde \
-    --prior gp \
-    --sigma_min 0.0001 \
-    --sigma_max 1.0 \
-    --sigma_data 0.05 \
-    --beta_min 0.2 \
-    --beta_d 10.0 \
-    --kernel_type rbf \
-    --bw GAUSSIAN \
-    --var 1.0
-```
+01_Unconditional_Generation.ipynb
 
 
 #### 2. Trend Priors (Trend-Conditional Generation)
+02_Conditional_Generation.ipynb
 
 Using different trend-based priors:
-
-```bash
-# Polynomial trend
-python main.py --data etth --name etth_poly --sample 0 --mode generation --train --prior trend-poly
-
-# Linear trend
-python main.py --data etth --name etth_linear --sample 0 --mode generation --train --prior trend-linear
-
-# Default trend
-python main.py --data stock --name stock_trend --sample 0 --mode generation --train --prior trend
-```
+--prior [trend-poly, trend-linear, trend]
 
 #### 3. Imputation (Fixed-data Conditional)
+03_Imputation_energy.ipynb
 
 For missing value imputation:
-
-```bash
-# Training
-python main.py \
-    --data stock \
-    --name stock_imputation \
-    --sample 1 \
-    --mode infill \
-    --train \
-    --missing_ratio 0.2
-
-# Evaluation
-python main.py \
-    --data stock \
-    --name stock_imputation \
-    --sample 1 \
-    --mode infill \
-    --milestone 10 \
-    --missing_ratio 0.2
-```
-
+--prior [impt-linear, impt-quadratic]
 
 
 ## Acknowledgement
