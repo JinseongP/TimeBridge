@@ -32,7 +32,7 @@ The full libraries list is provided as a `requirements.txt` in this repo. Please
 | `--name` | Experiment name | Custom string |
 | `--output` | Output directory | Default: `OUTPUT` |
 | `--sample` | Task type | `0`: unconditional, `1`: conditional |
-| `--mode` | Task mode | `generation`, `infill`, `predict` |
+| `--mode` | Task mode | `generation`, `infill`|
 
 #### TimeBridge Parameters
 
