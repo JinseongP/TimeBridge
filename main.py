@@ -169,6 +169,8 @@ def main():
     config['solver']['scheduler']['params']['warmup_lr'] = warmup_lr * (args.lr / base_lr)
 
     print(f'lr with {args.lr}')
+
+    os.makedirs(args.save_dir, exist_ok=True)
     
     logger = Logger(args)
     logger.save_config(config)

@@ -836,13 +836,10 @@ class Diffusion_TS(nn.Module):
             guidance=1,
         )
         print(f"sampling with NFE: {nfe}")
-        print("1111", sample.shape, y0.shape)
         
         # Image transform inverse
         sample = self._inverse_img_transform(sample)
         y0 = self._inverse_img_transform(y0)
-        print("2222", sample.shape, y0.shape)
-
         
         return sample, y0, path
 
