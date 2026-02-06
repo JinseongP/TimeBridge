@@ -67,6 +67,8 @@ Refer to **run** folder for example notebooks including best settings (`01_Uncon
 
 Using different trend-based priors:
 --prior [trend-poly, trend-linear, trend]
+Using conditional embedding:
+--cond_embedding 
 
 #### 3. Imputation (Fixed-data Conditional)
 03_Imputation_energy.ipynb
